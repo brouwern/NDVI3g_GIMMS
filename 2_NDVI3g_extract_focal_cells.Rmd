@@ -366,300 +366,98 @@ qplot(y = NDVI,
 ## Make dates
 
 ```{r}
-dat6$date <- with(dat6, 
+dat3$date <- with(dat3, 
                   paste(day.num,
                         mo.num,
                         yr,sep = "/"))
 ```
 
 
-## Save
+## Save bi monthly time series
 
 
 Save
 ```{r}
-save(dat6, file = "./data/NDVI_bimonthly_time_series_by_site.RData")
-write.csv(dat6, file = "./data/NDVI_bimonthly_time_series_by_site.csv",
+save(dat3, file = "./data/data_out/NDVI_bimonthly_time_series_by_site.RData")
+write.csv(dat3, file = "./data/data_out/NDVI_bimonthly_time_series_by_site.csv",
           row.names = F)
 ```
 
+
+
+## Do monthly maximum value compositing (MVC)
+
+
+## Explore differences w/in month
+
+Cast by 1st vs 2nd half of month
 ```{r}
-load("~/1_R/git/gimms_NDVI_processing/data/NDVI_time_series_by_site.RData")
+NDVI.MVC.mo <- dcast(data = dat3,
+                     formula = yr + mo.num + site + mo.num3 ~ mo.ab,
+                     value.var = "NDVI",
+                     fun.aggregate = max)
+```
+
+Examine differences
+```{r}
+plot(b ~ a, data = NDVI.MVC.mo)
+```
+
+## Calculate monthly maximum
+
+```{r}
+NDVI.MVC.mo$NDVI.MVC.mo <- apply(NDVI.MVC.mo[,c("a","b")],
+                                 1, max)
+```
+
+
+## Define day
+
+Assing to midpooint of month
+```{r}
+NDVI.MVC.mo$day.num <- 14
 ```
 
 
 
-
-
-
-## Summarize by season
-
-
-Indices for the seasons
-```{r}
-dat6$mo.num<- as.numeric(dat6$mo.num)
-
-i.win <- which(dat6$mo.num %in% c(1,2,3))#1st dry season
-i.spr <- which(dat6$mo.num %in% c(4,5,6))#1st rain season
-i.sum <- which(dat6$mo.num %in% c(7,8,9))#2nd dry season
-i.fal <- which(dat6$mo.num %in% c(10,11,12))#2nd rainy season
-```
+## Calculate julian w/in year
 
 ```{r}
+mo. <- ifelse(as.numeric(NDVI.MVC.mo$mo.num) > 9, 
+              NDVI.MVC.mo$mo.num ,
+                paste(0,NDVI.MVC.mo$mo.num, sep = ""))
 
-winter <- dcast(data = dat6[i.win,],
-      formula = yr + site +
-        nin.phase.strt + nin.str.strt +
-        nin.phase.end + nin.str.end ~ .,
-      value.var = "NDVI",
-      fun.aggregate = mean
-        )
-names(winter)[dim(winter)[2]] <- "mean.NDVI.win"
 
-spring <- dcast(data = dat6[i.spr,],
-      formula = yr + site +
-        nin.phase.strt + nin.str.strt +
-        nin.phase.end + nin.str.end ~ .,
-      value.var = "NDVI",
-      fun.aggregate = mean
-        )
-names(spring)[dim(spring)[2]] <- "mean.NDVI.spr"
 
-summer <- dcast(data = dat6[i.sum,],
-      formula = yr + site +
-        nin.phase.strt + nin.str.strt +
-        nin.phase.end + nin.str.end ~ .,
-      value.var = "NDVI",
-      fun.aggregate = mean
-        )
-names(summer)[dim(summer)[2]] <- "mean.NDVI.sum"
-
-fall <- dcast(data = dat6[i.fal,],
-      formula = yr + site +
-        nin.phase.strt + nin.str.strt +
-        nin.phase.end + nin.str.end ~ .,
-      value.var = "NDVI",
-      fun.aggregate = mean
-        )
-names(fall)[dim(fall)[2]] <- "mean.NDVI.fall"
-
-year <- dcast(data = dat6[,],
-      formula = yr + site +
-        nin.phase.strt + nin.str.strt +
-        nin.phase.end + nin.str.end ~ .,
-      value.var = "NDVI",
-      fun.aggregate = mean
-        )
-names(year)[dim(year)[2]] <- "mean.NDVI.year"
+NDVI.MVC.mo$date. <-  paste(NDVI.MVC.mo$yr,
+       mo.,
+      NDVI.MVC.mo$day.num,
+      sep = "-")
 
 ```
 
 
-
-
-
-
+yday function is from lubridate
 ```{r}
-temp <- merge(winter,spring)
-temp <- merge(temp, summer)
-temp <- merge(temp, fall)
-dat7 <- merge(temp, year)
-```
-
-
-
-## Pairs plot
-
-```{r}
-i.scrub <- with(dat7, which(site == "scrub"))
-ggpairs(dat7[-i.scrub,],
-        columns = c("mean.NDVI.spr","mean.NDVI.sum",
-                    "mean.NDVI.fall","mean.NDVI.year",
-                    "mean.NDVI.win"),
-        diag = NULL,
-        mapping = aes(color = nin.phase.strt))
-```
-
-
-
-## Save summaries
-```{r}
-write.csv(dat7,file = "./data/NDVI_annual_summaries_1993_2015.csv",
-          row.names = FALSE)
-```
-
-
-
-
-
-
-
-
-## Set up time lag
-
-```{r}
-dat7.lag <- dat7[,c("yr","site",
-                    "mean.NDVI.win","mean.NDVI.spr",
-                    "mean.NDVI.sum","mean.NDVI.fall",
-                    "mean.NDVI.year")]
-
-dat7.lag$yr.orig <- dat7.lag$yr
-
-dat7.lag$yr <- dat7.lag$yr + 1
-
-
-names(dat7.lag)[-c(1:2)] <- paste("lag",
-                                   names(dat7.lag)[-c(1:2)], 
-                                   sep = ".")
-```
-
-
-## Merge lagged w/ orig
-
-```{r}
-
-dat8 <- merge(dat7, dat7.lag)
-
-
-dim(dat7)
-dim(dat8)
-```
-
-
-
-
-
-
-## Save summaries
-```{r}
-write.csv(dat8,
-          file = "./data/data_out/NDVI_annual_summaries_1993_2015.csv",
-          row.names = FALSE)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Mean NDVi for month
-
-```{r}
-dat3 <- dcast(data = na.omit(dat2),
-              formula = yr + mo.num + site ~ .,
-              value.var = "NDVI",
-              fun.aggregate = mean)
-
-names(dat3)[4] <- "mean.mo.NDVI"
-
-dat3$mo.num <- as.numeric(dat3$mo.num)
-
-qplot(y = mean.mo.NDVI,
-      x = mo.num,
-      color = site,
-      data = dat3)
-
+NDVI.MVC.mo$julian <- yday(NDVI.MVC.mo$date.)
 
 ```
 
 
-ean NDVi for year
+## Sort by Julian w/in year
+
+arrange() is in plyr
 
 ```{r}
-dat4 <- dcast(data = na.omit(dat2),
-              formula = yr +  site ~ mo.num,
-              value.var = "NDVI",
-              fun.aggregate = sum)
-
-names(dat4)[3] <- "mean.ann.NDVI"
-
-dat4$mean.ann.NDVI <- apply(dat4[,4:6],1,sum)
-
-
-qplot(y = mean.ann.NDVI,
-      x = site,
-      data = dat4,
-      geom = "boxplot")
-
-
+NDVI.MVC.mo <- arrange(NDVI.MVC.mo, yr, julian)
 ```
 
 
-
-```{r}
-names(dat4)
-dat4$yr <-  as.numeric(dat4$yr) +1
-
-names(tot.caps.by.hab)
-status.caps$habitat <- gsub("desert","scrub",status.caps$habitat)
-names(status.caps)[3] <- "site"
-
-
-x <- merge(dat4,status.caps)
-
-qplot(y = N.tot,
-      x = log(mean.ann.NDVI), 
-      data = x, 
-      shape = status,
-      color = site) +
-  facet_grid(status ~ site, scale = "free") +
-  geom_smooth(method = "lm")
-
-plot(NDVI ~ N.tot, data = x)
-
-tot.caps.by.hab
-
-```
-
-
-
+## Save monthly max value composit
 
 
 ```{r}
-names(dat3)
-names(rain.sum.ped)
-
-names(rain.sum.ped) <- gsub("year","yr",names(rain.sum.ped))
-
-rain.sum.ped.lagged <- rain.sum.ped
-
-dat3$mo.num
-rain.sum.ped.lagged$mo.num <- rain.sum.ped$mo.num-1
-
-
-
-m <- merge(x = dat3,
-           y = rain.sum.ped.lagged)
-
-qplot(y = mean.mo.NDVI,
-      x = mo.num,
-       data = m, 
-      color =site) 
-
-qplot(y = rain.sum,
-      x = mo.num,
-       data = m, 
-      color =site)
-
-qplot(y = mean.mo.NDVI,
-      x = rain.sum,
-       data = m, 
-      color =site) +
-  facet_wrap(~mo,scales = "free")
-
+save(NDVI.MVC.mo, file = "./data/data_out/NDVI_monthly_MVC_time_series_by_site.RData")
+write.csv(NDVI.MVC.mo, file = "./data/data_out/NDVI_monthly_MVC_time_series_by_site.csv",
+          row.names = F)
 ```
-
-
