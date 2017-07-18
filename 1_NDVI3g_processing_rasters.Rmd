@@ -1,0 +1,322 @@
+---
+title: "GIMMS NDVI3g processing"
+author: "brouwern@gmail.com"
+date: "July 2, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introduction
+
+Process .nc4 files from
+https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
+
+(Similar data?:https://gimms.gsfc.nasa.gov/)
+
+
+* There are 2 .nc4 files for each year
+* Each file contains a stack of NDVI images, 2 for each month
+* So, each year has 2 .nc4 files x 12 images per file = 24 bi-monthly NDVI estimates
+* Images have to be processed and named, extracting the relevant information from the file name and order that the images appear in the stack.  
+
+## Preliminaries
+
+### Location of stored files
+
+Each image is >400 mb and so data is not stored on GitHub
+```{r}
+dat.dir <- "C:/Users/lisanjie2/Documents/1_R/git/DATA/GEO_DATA/GIMMS_NDVI/ndvi3g_geo_vs1_raw_nc4_files"
+list.files(dat.dir,include.dirs = F)
+```
+
+
+
+## Libraries
+
+Main libraries
+```{r}
+library(sp)
+library(raster)
+library(rasterVis)
+library(gimms)
+library(rgeos)
+```
+
+Load developement version of gimms
+```{r}
+library(devtools)
+install_github("environmentalinformatics-marburg/gimms", ref = "develop")
+
+```
+
+
+
+The gimms package has tools for downloading images but I was having problems.  Not sure if its the package or the database, so I downloaded files by hand.
+
+
+## Load GIMM data
+
+### Extent for clipping
+
+From each global NDVI file subset just Hispanola
+
+raster::getData
+
+From help file ?getData: " 'GADM' is a database of global administrative boundaries...you must also provide the level of administrative subdivision (0=country, 1=first level subdivision)." 
+
+
+Get outline of each country
+```{r}
+#outline of DR
+DOM.shp <- getData("GADM", 
+               country = c("DOM"), 
+               level = 0, 
+               path = tmpDir())
+
+#outline of Haiti
+HIT.shp <- getData("GADM", 
+               country = c("HTI"), 
+               level = 0, 
+               path = tmpDir())
+
+```
+
+
+Check results
+```{r}
+par(mfrow = c(1,2))
+plot(HIT.shp)    
+plot(DOM.shp)
+```
+
+
+
+### Joint DR and Haiti extents
+
+union() joins the 2 shapes
+```{r}
+HISP.shp <- union(DOM.shp,HIT.shp)
+```
+
+Check results
+```{r}
+par(mfrow = c(1,1))
+plot(HISP.shp)    
+
+```
+
+
+
+### Load sample of GIMM NDVI
+
+Specifying "ext = HISP.shp" extract just the shape of the island
+```{r}
+file.name <- list.files(dat.dir,include.dirs = F,full.names = T)[2]
+ndvi.load.test <- rasterizeGimms(file.name,
+                              ext = HISP.shp)
+
+
+```
+
+
+Plot mean NDVI for entire island
+```{r}
+par(mfrow = c(1,1))
+plot(mean(ndvi.load.test))
+```
+
+
+Save temp file
+```{r}
+file.name <- "./data/ndvi_load_test.RData"
+save(ndvi.load.test, file = file.name)
+```
+
+Check size: processed files i s 41 kb
+```{r}
+file.info(file.name)$size/1000
+```
+
+
+
+### Extract subset of Pedernales area
+```{r}
+#plot data
+plot(mean(ndvi.load.test))
+
+#draw 2 corners to set extent
+ext <- drawExtent()
+
+```
+
+### Download GIMM NDVI for just penninsula
+
+```{r}
+file.name <- list.files(dat.dir,include.dirs = F,full.names = T)[2]
+
+ndvi.load.test2 <- rasterizeGimms(file.name,
+                              ext = ext)
+
+plot(ndvi.load.test2[[1]])
+
+```
+
+
+# Load all data
+
+Names of all files
+```{r}
+ndvi3g.files <- list.files(dat.dir, pattern = "ndvi3g",full.names = T)
+```
+
+
+
+## Process data
+
+Loop over files to process list of file names
+```{r}
+
+#create blank list
+ndvi.list <- vector("list", length(ndvi3g.files))
+
+#loop over file names 
+for(i in 1:length(ndvi3g.files)){
+  
+  #file size should be 447991475 bytes; if not this size thre was a download error
+  if(file.info(ndvi3g.files[i])$size < 400000000) next
+  
+  #rasterize target file
+  ndvi.working <- rasterizeGimms(ndvi3g.files[i],
+                              ext = ext)
+  
+  #process file name
+  ## extract name
+  file.name.1 <- ndvi3g.files[i]
+  
+  ##extract month
+  mo <- gsub(".*([21][01-9][01-9][01-9])([_])([0][17][01][1-9]).*","\\3",file.name.1)
+  
+  ##extract year-month comob
+  yr.mo <- gsub(".*([21][01-9][01-9][01-9])([_])([0][17][01][1-9]).*","\\1\\2\\3",file.name.1)
+
+  #...
+  names(ndvi.working) <- gsub("\\.","_",names(ndvi.working))
+  names(ndvi.working) <- paste(names(ndvi.working),
+                               yr.mo, 
+                               sep = "_")
+  
+  
+  #Name each part of the stack of images
+  ## each file has data for 6 months
+  ## each month has 2 images
+  
+  ##process early months (jan, feb...june)
+  ###these files contain ("0106")
+  ### The string "c(1,1,2,2,3,3,4,4,5,5,6,6)" is used to name the images
+  ### within the stack; since there are 2 images for each month, each
+  ### number is repeated twice
+  if(mo == "0106"){
+    names(ndvi.working) <- paste(names(ndvi.working),"_",
+                                 c(1,1,2,2,3,3,4,4,5,5,6,6),
+                                 c("a","b"),
+                                 sep = "")
+  }
+  
+  ##process later months (jul - dece)
+  ### these files contain "0712"
+   if(mo == "0712"){
+    names(ndvi.working) <- paste(names(ndvi.working),"_",
+                                 c(7,7,8,8,9,9,10,10,11,11,12,12),
+                                 c("a","b"),
+                                 sep = "")
+  }
+  
+  
+ 
+  ndvi.list[i] <- ndvi.working
+ 
+}
+
+
+yr <- gsub(".*([21][01-9][01-9][01-9]).*","\\1",ndvi3g.files)
+mo <- gsub(".*([21][01-9][01-9][01-9])([_])([0][17][01][1-9]).*","\\3",ndvi3g.files)
+yr.mo <- gsub(".*([21][01-9][01-9][01-9])([_])([0][17][01][1-9]).*","\\1\\2\\3",ndvi3g.files)
+
+names(ndvi.list) <- paste("ndvi3g",yr.mo,sep = "_")
+
+
+```
+
+
+
+# Meta data sumarizing each file
+```{r}
+
+meta_data <- data.frame(
+  yr, 
+  mo, 
+  ndvi3g.files =list.files(dat.dir, pattern = "ndvi3g")
+)
+```
+
+
+
+# Check output
+
+The list contains a seperate slot for each image
+```{r}
+names(ndvi.list)
+```
+
+Each image contained 12 layers
+```{r}
+names(ndvi.list[[1]])
+names(ndvi.list[[2]])
+```
+
+### Stack multiple years of data
+
+Take elements of list and stack them into single file
+
+
+First, remove any empty slots in list which results from bad images which could not be processed
+
+Currently, ndvi3g_2004_0712 is bad
+
+```{r}
+i.bad <- which(lapply(ndvi.list,is.null) == TRUE)
+ndvi.list[i.bad]
+ndvi.list2 <- ndvi.list[-i.bad]
+```
+
+
+Stack good images
+```{r}
+ndvi.list.stacked  <- stack(ndvi.list2)
+```
+
+
+## Save image stack for Pedernales area
+
+```{r}
+years <- paste(range(as.numeric(as.character(meta_data$yr))),collapse = "_")
+
+file_name <- paste("./data/data_out/NDVI_pedernales_",
+                    years,
+                    ".RData",
+                    sep = "")
+
+save(ndvi.list.stacked,file = file_name)
+
+
+#size of resulting file
+file.info(file_name)$size
+```
+
+
+
+
