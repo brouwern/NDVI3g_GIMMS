@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 * Load processed rasters of the Pedernales area  
 * Identify cells within the raster that correspond the study sites
 * Create a time series of values for each year of study
+* Also carry out Maximum value compositing (MVC)
 
 ## Libraries
 ```{r}
@@ -453,7 +454,7 @@ NDVI.MVC.mo <- arrange(NDVI.MVC.mo, yr, julian)
 ```
 
 
-## Save monthly max value composit
+## Save monthly max value composite
 
 
 ```{r}
@@ -461,3 +462,87 @@ save(NDVI.MVC.mo, file = "./data/data_out/NDVI_monthly_MVC_time_series_by_site.R
 write.csv(NDVI.MVC.mo, file = "./data/data_out/NDVI_monthly_MVC_time_series_by_site.csv",
           row.names = F)
 ```
+
+
+
+
+
+## Summarize monthly MVC by season
+
+
+Indices for the seasons
+```{r}
+NDVI.MVC.mo$mo.num<- as.numeric(NDVI.MVC.mo$mo.num)
+
+i.win <- which(NDVI.MVC.mo$mo.num %in% c(1,2,3))#1st dry season
+i.spr <- which(NDVI.MVC.mo$mo.num %in% c(4,5,6))#1st rain season
+i.sum <- which(NDVI.MVC.mo$mo.num %in% c(7,8,9))#2nd dry season
+i.fal <- which(NDVI.MVC.mo$mo.num %in% c(10,11,12))#2nd rainy season
+```
+
+
+Calculate season summaries
+```{r}
+form <- formula(yr + site ~ .)
+
+#winter
+winter <- dcast(data = NDVI.MVC.mo[i.win,],
+      formula = form,
+      value.var = "NDVI.MVC.mo",
+      fun.aggregate = mean
+        )
+names(winter)[dim(winter)[2]] <- "mean.NDVI.win"
+
+#spring
+spring <- dcast(data = NDVI.MVC.mo[i.spr,],
+      formula = form,
+      value.var = "NDVI.MVC.mo",
+      fun.aggregate = mean
+        )
+names(spring)[dim(spring)[2]] <- "mean.NDVI.spr"
+
+#summer
+summer <- dcast(data = NDVI.MVC.mo[i.sum,],
+      formula = form,
+      value.var = "NDVI.MVC.mo",
+      fun.aggregate = mean
+        )
+names(summer)[dim(summer)[2]] <- "mean.NDVI.sum"
+
+#fall
+fall <- dcast(data = NDVI.MVC.mo[i.fal,],
+      formula = form,
+      value.var = "NDVI.MVC.mo",
+      fun.aggregate = mean
+        )
+names(fall)[dim(fall)[2]] <- "mean.NDVI.fall"
+
+#all year
+year <- dcast(data = NDVI.MVC.mo[,],
+      formula = form,
+      value.var = "NDVI.MVC.mo",
+      fun.aggregate = mean
+        )
+names(year)[dim(year)[2]] <- "mean.NDVI.year"
+
+```
+
+
+
+Merge each season
+```{r}
+temp <- merge(winter,spring)
+temp <- merge(temp, summer)
+temp <- merge(temp, fall)
+NDVI.MVC.mo.seasonal.summ <- merge(temp, year)
+```
+
+
+
+
+Save
+```{r}
+write.csv(NDVI.MVC.mo.seasonal.summ, file = "./data/data_out/NDVI_MVC_seasonal_summary_time_series_by_site.csv",
+          row.names = F)
+```
+
