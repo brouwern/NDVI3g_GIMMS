@@ -23,6 +23,12 @@ https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
 * So, each year has 2 .nc4 files x 12 images per file = 24 bi-monthly NDVI estimates
 * Images have to be processed and named, extracting the relevant information from the file name and order that the images appear in the stack.  
 
+
+## TO DO
+
+* Some of the processing I do by hand could be done with monthlyIndices() to extract dates
+* 
+
 ## Preliminaries
 
 ### Location of stored files
@@ -175,6 +181,9 @@ ndvi3g.files <- list.files(dat.dir, pattern = "ndvi3g",full.names = T)
 
 
 
+
+
+
 ## Process data
 
 Loop over files to process list of file names
@@ -305,7 +314,7 @@ ndvi.list.stacked  <- stack(ndvi.list2)
 ```{r}
 years <- paste(range(as.numeric(as.character(meta_data$yr))),collapse = "_")
 
-file_name <- paste("./data/data_out/NDVI_pedernales_",
+file_name <- paste("./data/data_out/NDVI_bi_month_stacked_raster_pedernales_",
                     years,
                     ".RData",
                     sep = "")

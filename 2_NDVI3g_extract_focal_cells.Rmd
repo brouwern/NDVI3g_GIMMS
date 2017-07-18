@@ -533,7 +533,7 @@ dim(dat8)
 ## Save summaries
 ```{r}
 write.csv(dat8,
-          file = "./data/NDVI_annual_summaries_1993_2015.csv",
+          file = "./data/data_out/NDVI_annual_summaries_1993_2015.csv",
           row.names = FALSE)
 ```
 
@@ -661,36 +661,5 @@ qplot(y = mean.mo.NDVI,
   facet_wrap(~mo,scales = "free")
 
 ```
-
-
-
-
-```{r}
-ts(ndvi.1997.0106[row.col.scrub]
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-```{r}
-ndvi.1997.0106.crop <- crop(ndvi.1997.0106,e)
-ndvi.1997.0712.crop <- crop(ndvi.1997.0712,e)
-plot(ndvi.1997.0106.crop[[1]])
-```
-
-```{r}
-ndvis.1997.crop.all <- stack(ndvi.1997.0106.crop,
-                            ndvi.1997.0712.crop )
-```
-
 
 
