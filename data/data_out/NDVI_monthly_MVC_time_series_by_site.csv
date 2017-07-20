@@ -1,4 +1,4 @@
-"yr","mo.no","mo.no.char","mo.char","site","NDVI.wks.a","NDVI.wks.b","NDVI.MVC.mo","day.num","date.","julian"
+"yr","mo.no","mo.no.char","mo.char","site","NDVI.wks.a","NDVI.wks.b","NDVI.MVC.mo","day.no","date","julian"
 "1993",1,"1","Jan","broadleaf",0.7515,0.7201,0.7515,14,"1993-01-14",14
 "1993",1,"1","Jan","Lloyd",0.6509,0.6367,0.6509,14,"1993-01-14",14
 "1993",1,"1","Jan","scrub",0.4641,0.4515,0.4641,14,"1993-01-14",14

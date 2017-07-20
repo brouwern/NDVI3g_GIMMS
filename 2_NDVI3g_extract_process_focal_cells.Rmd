@@ -403,7 +403,7 @@ names(NDVI.MVC.mo)[grep("^[ab]",names(NDVI.MVC.mo))] <- c("NDVI.wks.a",
 
 
 
-Throws some NAs b/c of missing data in 2004
+Throws some errors b/c of missing data in 2004
 ```{r}
 subset(NDVI.MVC.mo, yr == "2004")
 ```
@@ -411,7 +411,7 @@ subset(NDVI.MVC.mo, yr == "2004")
 
 Examine differences
 ```{r}
-plot(b ~ a, data = NDVI.MVC.mo)
+plot(NDVI.wks.b ~ NDVI.wks.a, data = NDVI.MVC.mo)
 ```
 
 ### Calculate monthly maximum
@@ -426,13 +426,15 @@ NDVI.MVC.mo$NDVI.MVC.mo <- apply(NDVI.MVC.mo[,c("NDVI.wks.a","NDVI.wks.b")],
 
 Assing to midpooint of month
 ```{r}
-NDVI.MVC.mo$day.num <- 14
+NDVI.MVC.mo$day.no <- 14
 ```
 
 
 
 ## Calculate julian w/in year
 
+
+Formulate date
 ```{r}
 mo. <- ifelse(as.numeric(NDVI.MVC.mo$mo.no) > 9, 
               NDVI.MVC.mo$mo.no ,
@@ -440,17 +442,17 @@ mo. <- ifelse(as.numeric(NDVI.MVC.mo$mo.no) > 9,
 
 
 
-NDVI.MVC.mo$date. <-  paste(NDVI.MVC.mo$yr,
+NDVI.MVC.mo$date <-  paste(NDVI.MVC.mo$yr,
        mo.,
-      NDVI.MVC.mo$day.num,
+      NDVI.MVC.mo$day.no,
       sep = "-")
 
 ```
 
 
-yday function is from lubridate
+Calcualte Julian (yday function is from lubridate)
 ```{r}
-NDVI.MVC.mo$julian <- yday(NDVI.MVC.mo$date.)
+NDVI.MVC.mo$julian <- yday(NDVI.MVC.mo$date)
 
 ```
 
