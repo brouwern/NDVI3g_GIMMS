@@ -424,11 +424,18 @@ NDVI.MVC.mo$NDVI.MVC.mo <- apply(NDVI.MVC.mo[,c("NDVI.wks.a","NDVI.wks.b")],
 
 ## Define day
 
-Assing to midpooint of month
+Assing to midpoint of month
 ```{r}
-NDVI.MVC.mo$day.no <- 14
+NDVI.MVC.mo$day.no <- 15
 ```
 
+
+
+```{r}
+NDVI.MVC.mo$mo.no.char <- ifelse(NDVI.MVC.mo$mo.no.char > 9,NDVI.MVC.mo$mo.no.char,
+                          paste(0,NDVI.MVC.mo$mo.no.char,
+                                sep = ""))
+```
 
 
 ## Calculate julian w/in year
