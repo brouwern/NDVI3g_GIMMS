@@ -32,9 +32,8 @@ library(plyr)
 
 Load rasters
 ```{r}
-load("./data/data_out/NDVI_pedernales_1993_2015.RData")
+load("./data/data_out/NDVI_bi_month_stacked_raster_pedernales_1993_2015.RData")
 ```
-
 
 
 Load spatial points for 
@@ -151,7 +150,7 @@ layer.names <- names(ndvi.list.stacked)
 
 #extrat year month etc
 yr <- gsub(".*([21][01-9][01-9][01-9]).*","\\1",layer.names)
-mo.num <- gsub(".*([_])([1]{0,1}[01-9])([ab])","\\2",layer.names)
+mo.no.char <- gsub(".*([_])([1]{0,1}[01-9])([ab])","\\2",layer.names)
 mo.ab <- gsub(".*([_])([1]{0,1}[01-9])([ab])","\\3",layer.names)
 
 
@@ -171,7 +170,7 @@ Put data from selected cells into into dataframes
 ```{r}
 dat.scrub <- data.frame(NDVI = ts.scrub,
                         yr = yr,
-                        mo.num = mo.num,
+                        mo.no.char = mo.no.char,
                         mo.ab = mo.ab,
                         site = "scrub",
                         stringsAsFactors = F,
@@ -179,7 +178,7 @@ dat.scrub <- data.frame(NDVI = ts.scrub,
 
 dat.broadleaf <- data.frame(NDVI = ts.bl,
                         yr = yr,
-                        mo.num = mo.num,
+                        mo.no.char = mo.no.char,
                         mo.ab = mo.ab,
                         site = "broadleaf",
                         stringsAsFactors = F,
@@ -188,7 +187,7 @@ dat.broadleaf <- data.frame(NDVI = ts.bl,
 
 dat.Lloyd <- data.frame(NDVI = ts.Lloyd,
                         yr = yr,
-                        mo.num = mo.num,
+                        mo.no.char = mo.no.char,
                         mo.ab = mo.ab,
                         stringsAsFactors = F,
                         site = "Lloyd",
@@ -201,19 +200,34 @@ dat <- rbind(dat.scrub,
 
 
 
+```
 
+
+Set month as numeric
+```{r}
+dat$mo.no <- as.numeric(dat$mo.no.char)
 ```
 
 
 
 
-Convert "a" vs "b" month designation to 0.5 for convience
+Convert "a" vs "b" month designation to 0.5 for convenience
 ```{r}
-dat$mo.num2 <- as.numeric(dat$mo.num) + ifelse(dat$mo.ab == "a",0,0.5)
+dat$mo.no0.5 <- dat$mo.no + ifelse(dat$mo.ab == "a",0,0.5)
 
-y.max <- max(dat$NDVI)
-y.min <- min(dat$NDVI)
+```
 
+
+Month abbreviations
+```{r}
+dat$mo.char <- month.abb[dat$mo.no]
+```
+
+
+
+
+Plot by month
+```{r}
 qplot(y = NDVI,
       x = i,
       data = dat,
@@ -230,18 +244,16 @@ If data hasn't been retrieved from web or a file was corrupted, this will add NA
 rng <- range(as.numeric(dat$yr))
 
 dat.dummy <- expand.grid(yr = rng[1]:rng[2],
-                         mo.num = 1:12,
+                         mo.no = 1:12,
                          mo.ab = c("a","b"),
                          site = c("scrub","broadleaf","Lloyd"),
                          stringsAsFactors = F)
-dat.dummy$mo.num2 <- as.numeric(dat.dummy$mo.num) + ifelse(dat.dummy$mo.ab == "a",0,0.5)
 
-
+dat.dummy$mo.no0.5 <- as.numeric(dat.dummy$mo.no) + 
+  ifelse(dat.dummy$mo.ab == "a",0,0.5)
 
 dat2 <- merge(dat, dat.dummy,all =  T)
 dat2$i.new <- 1:dim(dat2)[1]
-
-
 
 ```
 
@@ -271,30 +283,26 @@ dat2$day.num <- ifelse(dat2$mo.ab == "a",7,22)
 
 ## Calculate Julian datas
 
-
 Concatenate date
 ```{r}
-mo. <- ifelse(as.numeric(dat2$mo.num) > 9, 
-              dat2$mo.num ,
-                paste(0,dat2$mo.num, sep = ""))
+mo. <- ifelse(as.numeric(dat2$mo.no) > 9, 
+              dat2$mo.no ,
+                paste(0,dat2$mo.no, sep = ""))
 
 
 date. <-  paste(dat2$yr,
        mo.,
       dat2$day.num,
       sep = "-")
-
-
 ```
 
 
 
-## Calculate julian w/in year
+## Calculate Julian w/in year
 
-yday function is from lubridate
+yday() function is from lubridate package
 ```{r}
 dat2$julian <- yday(date.)
-
 ```
 
 
@@ -309,16 +317,9 @@ dat3 <- arrange(dat2, yr, julian)
 
 
 
-Month abbreviations
-```{r}
-dat3$mo.num3 <- month.abb[dat3$mo.num2]
-```
+## Elapsed time
 
-
-
-# Cumulative date
-
-Calculate date since 1st timepoint in data
+Calculate date since very 1st timepoint in data
 ```{r}
 
 i.scrub <- which(dat3$site == "scrub")
@@ -333,9 +334,6 @@ dat3$days.elapsed[i.bl] <- cumsum(dat3$julian[i.bl])
 dat3$days.elapsed[i.lloyd] <- cumsum(dat3$julian[i.lloyd])
 
 ```
-
-
-
 
 
 ## Plot full time series
@@ -369,13 +367,12 @@ qplot(y = NDVI,
 ```{r}
 dat3$date <- with(dat3, 
                   paste(day.num,
-                        mo.num,
+                        mo.no,
                         yr,sep = "/"))
 ```
 
 
 ## Save bi monthly time series
-
 
 Save
 ```{r}
@@ -389,25 +386,38 @@ write.csv(dat3, file = "./data/data_out/NDVI_bimonthly_time_series_by_site.csv",
 ## Do monthly maximum value compositing (MVC)
 
 
-## Explore differences w/in month
+### Explore differences w/in month
 
 Cast by 1st vs 2nd half of month
 ```{r}
 NDVI.MVC.mo <- dcast(data = dat3,
-                     formula = yr + mo.num + site + mo.num3 ~ mo.ab,
+                     formula = yr + mo.no + mo.no.char + mo.char + site ~ mo.ab,
                      value.var = "NDVI",
                      fun.aggregate = max)
 ```
+
+```{r}
+names(NDVI.MVC.mo)[grep("^[ab]",names(NDVI.MVC.mo))] <- c("NDVI.wks.a",
+                                                          "NDVI.wks.b")
+```
+
+
+
+Throws some NAs b/c of missing data in 2004
+```{r}
+subset(NDVI.MVC.mo, yr == "2004")
+```
+
 
 Examine differences
 ```{r}
 plot(b ~ a, data = NDVI.MVC.mo)
 ```
 
-## Calculate monthly maximum
+### Calculate monthly maximum
 
 ```{r}
-NDVI.MVC.mo$NDVI.MVC.mo <- apply(NDVI.MVC.mo[,c("a","b")],
+NDVI.MVC.mo$NDVI.MVC.mo <- apply(NDVI.MVC.mo[,c("NDVI.wks.a","NDVI.wks.b")],
                                  1, max)
 ```
 
@@ -424,9 +434,9 @@ NDVI.MVC.mo$day.num <- 14
 ## Calculate julian w/in year
 
 ```{r}
-mo. <- ifelse(as.numeric(NDVI.MVC.mo$mo.num) > 9, 
-              NDVI.MVC.mo$mo.num ,
-                paste(0,NDVI.MVC.mo$mo.num, sep = ""))
+mo. <- ifelse(as.numeric(NDVI.MVC.mo$mo.no) > 9, 
+              NDVI.MVC.mo$mo.no ,
+                paste(0,NDVI.MVC.mo$mo.no, sep = ""))
 
 
 
@@ -467,17 +477,20 @@ write.csv(NDVI.MVC.mo, file = "./data/data_out/NDVI_monthly_MVC_time_series_by_s
 
 
 
+
+
+
 ## Summarize monthly MVC by season
 
 
 Indices for the seasons
 ```{r}
-NDVI.MVC.mo$mo.num<- as.numeric(NDVI.MVC.mo$mo.num)
+NDVI.MVC.mo$mo.no<- as.numeric(NDVI.MVC.mo$mo.no)
 
-i.win <- which(NDVI.MVC.mo$mo.num %in% c(1,2,3))#1st dry season
-i.spr <- which(NDVI.MVC.mo$mo.num %in% c(4,5,6))#1st rain season
-i.sum <- which(NDVI.MVC.mo$mo.num %in% c(7,8,9))#2nd dry season
-i.fal <- which(NDVI.MVC.mo$mo.num %in% c(10,11,12))#2nd rainy season
+i.win <- which(NDVI.MVC.mo$mo.no %in% c(1,2,3))#1st dry season
+i.spr <- which(NDVI.MVC.mo$mo.no %in% c(4,5,6))#1st rain season
+i.sum <- which(NDVI.MVC.mo$mo.no %in% c(7,8,9))#2nd dry season
+i.fal <- which(NDVI.MVC.mo$mo.no %in% c(10,11,12))#2nd rainy season
 ```
 
 
